@@ -60,6 +60,29 @@ def remap_ldap_attributes(cfg: dict, user: dict):
     return remapped
 
 
+def _save_user_keys(user: dict, base_path: str, keys_file: str):
+    if not re.match(cfg['validuserregex'], user['uid'][0]):
+        raise ValueError()
+
+    userpath = os.path.join(base_path, user['uid'][0])
+    auth_keys_file = os.path.join(userpath, keys_file)
+    log.debug(userpath)
+
+    # Create users directory and ensure ownership and permissions
+    if not os.path.isdir(userpath):
+        os.mkdir(userpath)
+        log.debug("Adding user %s", user['uid'][0])
+    os.chmod(userpath, 0o700)
+    os.chown(userpath, uid=user['uidNumber'][0], gid=user['gidNumber'][0])
+
+    # Create authorized_keys file and ensure ownership and permissions
+    with open(auth_keys_file, "w") as f:
+        f.writelines(user['sshkeys'])
+        log.debug("Wrote %d keys for %s", len(user['sshkeys']), user['uid'][0])
+    os.chmod(auth_keys_file, 0o600)
+    os.chown(auth_keys_file, uid=user['uidNumber'][0], gid=user['gidNumber'][0])
+
+
 @click.group()
 @click.option('-c', '--cfg-path', help='Configuration file', default=CONFIG_FILE_LOCATION, type=str)
 @click.option('-v', '--verbosity', help='Verbosity', default=0, count=True)
@@ -93,33 +116,13 @@ def update_keys(authorized_keys_filename: str, key_base_path: str, create_output
     if create_output_dir and not os.path.isdir(key_base_path):
         os.makedirs(key_base_path)
 
+    # get userinfo and create keys files
     users = [remap_ldap_attributes(cfg, u) for u in search_ldap(cfg)]
     for user in users:
-        if not re.match(cfg['validuserregex'], user['uid'][0]):
+        try:
+            _save_user_keys(user, key_base_path, authorized_keys_filename)
+        except ValueError:
             log.warning("Skipped %s due to invalid username", user['uid'][0])
-            continue
-
-        userpath = os.path.join(key_base_path, user['uid'][0])
-        auth_keys_file = os.path.join(userpath, authorized_keys_filename)
-        log.debug(userpath)
-
-        # Create users directory and ensure ownership and permissions
-        if not os.path.isdir(userpath):
-            try:
-                os.mkdir(userpath)
-            except FileNotFoundError:
-                log.error("Couldn't create user directory. Try passing -m to create the base directory.")
-                sys.exit(1)
-            log.debug("Adding user %s", user['uid'][0])
-        os.chmod(userpath, 0o700)
-        os.chown(userpath, uid=user['uidNumber'][0], gid=user['gidNumber'][0])
-
-        # Create authorized_keys file and ensure ownership and permissions
-        with open(auth_keys_file, "w") as f:
-            f.writelines(user['sshkeys'])
-            log.debug("Wrote %d keys for %s", len(user['sshkeys']), user['uid'][0])
-        os.chmod(auth_keys_file, 0o600)
-        os.chown(auth_keys_file, uid=user['uidNumber'][0], gid=user['gidNumber'][0])
 
     logging.info("Processed %d uids from ldap", len(users))
 
