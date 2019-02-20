@@ -1,0 +1,17 @@
+{
+    "server": "ldaps://ldap.company.com",
+    "port": 636,
+    "binddn": "uid=binduser,cn=users,cn=accounts,dc=company,dc=com",
+    "secret": "supersecretpassword",
+    "basedn": "dc=company,dc=com",
+    "usersearchbase": "cn=users,cn=accounts",
+    "objectclass": "person",
+    "userobjectfilter": "memberOf=cn=sshusers,cn=groups,cn=accounts,dc=company,dc=com",
+    "attributes": {
+        "uid": "uid",
+        "sshkeys": "ipaSshPubKey"
+    },
+    "validuserregex": "^[a-z_][a-z0-9_]{0,30}$",
+    "key_base_path": "/opt/ssh_keys",
+    "authorized_keys_filename": "authorized_keys"
+}
