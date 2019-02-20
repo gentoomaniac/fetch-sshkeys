@@ -9,6 +9,8 @@
     "userobjectfilter": "memberOf=cn=sshusers,cn=groups,cn=accounts,dc=company,dc=com",
     "attributes": {
         "uid": "uid",
+        "uidNumber": "uidNumber",
+        "gidNumber": "gidNumber",
         "sshkeys": "ipaSshPubKey"
     },
     "validuserregex": "^[a-z_][a-z0-9_]{0,30}$",

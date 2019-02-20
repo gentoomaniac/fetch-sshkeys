@@ -100,8 +100,10 @@ def update_keys(authorized_keys_filename: str, key_base_path: str, create_output
             continue
 
         userpath = os.path.join(key_base_path, user['uid'][0])
+        auth_keys_file = os.path.join(userpath, authorized_keys_filename)
         log.debug(userpath)
 
+        # Create users directory and ensure ownership and permissions
         if not os.path.isdir(userpath):
             try:
                 os.mkdir(userpath)
@@ -109,13 +111,19 @@ def update_keys(authorized_keys_filename: str, key_base_path: str, create_output
                 log.error("Couldn't create user directory. Try passing -m to create the base directory.")
                 sys.exit(1)
             log.debug("Adding user %s", user['uid'][0])
+        os.chmod(userpath, 0o700)
+        os.chown(userpath, uid=user['uidNumber'][0], gid=user['gidNumber'][0])
 
-        with open(os.path.join(userpath, authorized_keys_filename), "w") as f:
+        # Create authorized_keys file and ensure ownership and permissions
+        with open(auth_keys_file, "w") as f:
             f.writelines(user['sshkeys'])
             log.debug("Wrote %d keys for %s", len(user['sshkeys']), user['uid'][0])
+        os.chmod(auth_keys_file, 0o600)
+        os.chown(auth_keys_file, uid=user['uidNumber'][0], gid=user['gidNumber'][0])
 
     logging.info("Processed %d uids from ldap", len(users))
 
+    # Clean up old directories whose uid is not found in ldap any longer
     if delete:
         uids = [u['uid'][0] for u in users]
         deleted_users = [u for u in next(os.walk(key_base_path))[1] if u not in uids]
